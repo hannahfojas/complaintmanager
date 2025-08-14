@@ -6,12 +6,16 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
   const [errMsg, setErrMsg] = useState('');
   const token = useMemo(() => localStorage.getItem('token') || '', []);
 
+  const authHdr = () => (token ? { Authorization: `Bearer ${token}` } : {});
+
   const fetchComplaints = async (retries = 3, delayMs = 400) => {
     setLoading(true);
     setErrMsg('');
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const { data } = await axiosInstance.get('/api/complaints');
+        const { data } = await axiosInstance.get('/api/complaints', {
+          headers: authHdr()
+        });
         setTasks(data);
         setLoading(false);
         return;
@@ -24,9 +28,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
           continue;
         }
         setErrMsg(
-          status
-            ? `Failed to load complaints (HTTP ${status}).`
-            : 'Network error while loading complaints.'
+          status ? `Failed to load complaints (HTTP ${status}).` : 'Network error while loading complaints.'
         );
         setLoading(false);
         return;
@@ -42,7 +44,11 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
   const closeNoResolution = async (id) => {
     if (!window.confirm('Close this complaint without resolution?')) return;
     try {
-      const { data } = await axiosInstance.patch(`/api/complaints/${id}/close-no-resolution`);
+      const { data } = await axiosInstance.patch(
+        `/api/complaints/${id}/close-no-resolution`,
+        null,
+        { headers: authHdr() }
+      );
       setTasks((prev) => prev.map((t) => (t._id === id ? data : t)));
     } catch (err) {
       const status = err?.response?.status;
@@ -52,17 +58,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
 
   return (
     <div className="mt-6 overflow-x-auto">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold">Complaints</h2>
-        <button
-          className="px-2 py-1 border rounded hover:bg-gray-50"
-          onClick={() => fetchComplaints()}
-          disabled={loading}
-          title="Refresh"
-        >
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
+      <h2 className="font-semibold mb-3">Complaints</h2>
 
       {errMsg && (
         <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 p-2 rounded">
@@ -87,9 +83,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan="9" className="border p-4 text-center text-gray-500">
-                Loading…
-              </td>
+              <td colSpan="9" className="border p-4 text-center text-gray-500">Loading…</td>
             </tr>
           ) : tasks && tasks.length > 0 ? (
             tasks.map((t) => (
@@ -121,9 +115,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
             ))
           ) : (
             <tr>
-              <td colSpan="9" className="border p-4 text-center text-gray-500">
-                No complaints found.
-              </td>
+              <td colSpan="9" className="border p-4 text-center text-gray-500">No complaints found.</td>
             </tr>
           )}
         </tbody>
