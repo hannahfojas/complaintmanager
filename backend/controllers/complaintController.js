@@ -1,8 +1,7 @@
 const Complaint = require('../models/Complaint');
 
-
-//Create complaint
-exports.createComplaint = async (req, res) => {
+// Create Complaint
+const createComplaint = async (req, res) => {
   try {
     const payload = {
       complainantName: req.body.complainantName,
@@ -23,14 +22,12 @@ exports.createComplaint = async (req, res) => {
   }
 };
 
-
-//List complaints
-exports.getComplaints = async (req, res) => {
+// Get Complaints
+const getComplaints = async (req, res) => {
   try {
     const q = {};
     if (req.query.status) q.status = req.query.status;
     if (req.query.category) q.category = req.query.category;
-
     const docs = await Complaint.find(q).sort({ createdAt: -1 });
     res.json(docs);
   } catch (err) {
@@ -38,9 +35,8 @@ exports.getComplaints = async (req, res) => {
   }
 };
 
-
-//Update complaint *details only* (no status/resolution fields here)
-exports.updateComplaintDetails = async (req, res) => {
+// Update Complaint Details
+const updateComplaintDetails = async (req, res) => {
   try {
     const { id } = req.params;
     const updatable = [
@@ -52,12 +48,10 @@ exports.updateComplaintDetails = async (req, res) => {
       'category',
       'assignedTo'
     ];
-
     const update = {};
     for (const k of updatable) {
       if (k in req.body) update[k] = req.body[k];
     }
-
     const doc = await Complaint.findByIdAndUpdate(id, update, {
       new: true,
       runValidators: true
@@ -69,15 +63,13 @@ exports.updateComplaintDetails = async (req, res) => {
   }
 };
 
-
-//Close without Resolution
-exports.closeWithoutResolution = async (req, res) => {
+// Close Without Resolution
+const closeWithoutResolution = async (req, res) => {
   try {
     const { id } = req.params;
     const doc = await Complaint.findById(id);
     if (!doc) return res.status(404).json({ message: 'Complaint not found' });
 
-    // If already resolved/closed, return
     if (doc.status === 'Resolved' || doc.status === 'Closed - No Resolution') {
       return res.json(doc);
     }
@@ -90,4 +82,11 @@ exports.closeWithoutResolution = async (req, res) => {
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
+};
+
+module.exports = {
+  createComplaint,
+  getComplaints,
+  updateComplaintDetails,
+  closeWithoutResolution
 };
