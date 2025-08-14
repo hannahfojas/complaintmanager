@@ -1,69 +1,104 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 
-const TaskForm = ({ tasks, setTasks, editingTask, setEditingTask }) => {
-  const { user } = useAuth();
-  const [formData, setFormData] = useState({ title: '', description: '', deadline: '' });
+const TaskForm = ({ editingTask, setEditingTask, setTasks }) => {
+  const [form, setForm] = useState({
+    complainantName: '',
+    email: '',
+    phoneNumber: '',
+    title: '',
+    description: '',
+    category: 'Low',
+    assignedTo: '',
+    status: 'Open'
+  });
 
   useEffect(() => {
     if (editingTask) {
-      setFormData({
-        title: editingTask.title,
-        description: editingTask.description,
-        deadline: editingTask.deadline,
+      setForm({
+        complainantName: editingTask.complainantName || '',
+        email: editingTask.email || '',
+        phoneNumber: editingTask.phoneNumber || '',
+        title: editingTask.title || '',
+        description: editingTask.description || '',
+        category: editingTask.category || 'Low',
+        assignedTo: editingTask.assignedTo || '',
+        status: editingTask.status || 'Open'
       });
     } else {
-      setFormData({ title: '', description: '', deadline: '' });
+      setForm({
+        complainantName: '',
+        email: '',
+        phoneNumber: '',
+        title: '',
+        description: '',
+        category: 'Low',
+        assignedTo: '',
+        status: 'Open'
+      });
     }
   }, [editingTask]);
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingTask) {
-        const response = await axiosInstance.put(`/api/tasks/${editingTask._id}`, formData, {
-          headers: { Authorization: `Bearer ${user.token}` },
+        const { _id } = editingTask;
+        const { complainantName, email, phoneNumber, title, description, category, assignedTo } = form;
+        const { data } = await axiosInstance.put(`/api/complaints/${_id}`, {
+          complainantName, email, phoneNumber, title, description, category, assignedTo
         });
-        setTasks(tasks.map((task) => (task._id === response.data._id ? response.data : task)));
+        setTasks(prev => prev.map(t => (t._id === _id ? data : t)));
+        setEditingTask(null);
       } else {
-        const response = await axiosInstance.post('/api/tasks', formData, {
-          headers: { Authorization: `Bearer ${user.token}` },
+        const { complainantName, email, phoneNumber, title, description, category, assignedTo } = form;
+        const { data } = await axiosInstance.post('/api/complaints', {
+          complainantName, email, phoneNumber, title, description, category, assignedTo
         });
-        setTasks([...tasks, response.data]);
+        setTasks(prev => [data, ...prev]);
       }
-      setEditingTask(null);
-      setFormData({ title: '', description: '', deadline: '' });
-    } catch (error) {
-      alert('Failed to save task.');
+      setForm({
+        complainantName: '',
+        email: '',
+        phoneNumber: '',
+        title: '',
+        description: '',
+        category: 'Low',
+        assignedTo: '',
+        status: 'Open'
+      });
+    } catch (err) {
+      alert('Save failed.');
+      console.error(err);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 shadow-md rounded mb-6">
-      <h1 className="text-2xl font-bold mb-4">{editingTask ? 'Your Form Name: Edit Operation' : 'Your Form Name: Create Operation'}</h1>
-      <input
-        type="text"
-        placeholder="Title"
-        value={formData.title}
-        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-        className="w-full mb-4 p-2 border rounded"
-      />
-      <input
-        type="text"
-        placeholder="Description"
-        value={formData.description}
-        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        className="w-full mb-4 p-2 border rounded"
-      />
-      <input
-        type="date"
-        value={formData.deadline}
-        onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-        className="w-full mb-4 p-2 border rounded"
-      />
-      <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded">
-        {editingTask ? 'Update Button' : 'Create Button'}
+    <form onSubmit={handleSubmit} className="max-w-md mx-auto p-4 border rounded mb-8">
+      <input name="complainantName" value={form.complainantName} onChange={handleChange} placeholder="Complainant Name" required className="w-full p-2 border mb-2" />
+      <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="Email" required className="w-full p-2 border mb-2" />
+      <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} placeholder="Phone Number" required className="w-full p-2 border mb-2" />
+      <input name="title" value={form.title} onChange={handleChange} placeholder="Complaint Title" required className="w-full p-2 border mb-2" />
+      <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" className="w-full p-2 border mb-2" rows={3} />
+      <select name="category" value={form.category} onChange={handleChange} className="w-full p-2 border mb-2">
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>{/* align only */}
+        <option value="High">High</option>
+      </select>
+      <input name="assignedTo" value={form.assignedTo} onChange={handleChange} placeholder="Assigned To" className="w-full p-2 border mb-2" />
+
+      {/* Status */}
+      <select name="status" value={form.status} onChange={handleChange} className="w-full p-2 border mb-2" disabled>
+        <option value="Open">Open</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Resolved">Resolved</option>
+        <option value="Closed - No Resolution">Closed - No Resolution</option>
+      </select>
+
+      <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">
+        {editingTask ? 'Update Complaint' : 'Add Complaint'}
       </button>
     </form>
   );
