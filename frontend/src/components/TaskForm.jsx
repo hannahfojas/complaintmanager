@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axiosInstance from '../axiosConfig';
 
-const TaskForm = ({ editingTask, setEditingTask, setTasks }) => {
+const TaskForm = ({ tasks, setTasks, editingTask, setEditingTask }) => {
   const [form, setForm] = useState({
     complainantName: '',
     email: '',
@@ -41,24 +41,62 @@ const TaskForm = ({ editingTask, setEditingTask, setTasks }) => {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  const authHdr = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingTask) {
         const { _id } = editingTask;
-        const { complainantName, email, phoneNumber, title, description, category, assignedTo } = form;
-        const { data } = await axiosInstance.put(`/api/complaints/${_id}`, {
-          complainantName, email, phoneNumber, title, description, category, assignedTo
-        });
-        setTasks(prev => prev.map(t => (t._id === _id ? data : t)));
+
+        const detailsPayload = {
+          complainantName: form.complainantName,
+          email: form.email,
+          phoneNumber: form.phoneNumber,
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          assignedTo: form.assignedTo
+        };
+        const { data: updatedDetails } = await axiosInstance.put(
+          `/api/complaints/${_id}`,
+          detailsPayload,
+          { headers: authHdr() }
+        );
+
+        let updatedDoc = updatedDetails;
+        if (form.status !== editingTask.status) {
+          const { data: updatedStatus } = await axiosInstance.patch(
+            `/api/complaints/${_id}/status`,
+            { status: form.status },
+            { headers: authHdr() }
+          );
+          updatedDoc = updatedStatus;
+        }
+
+        setTasks((prev) => prev.map((t) => (t._id === _id ? updatedDoc : t)));
         setEditingTask(null);
       } else {
-        const { complainantName, email, phoneNumber, title, description, category, assignedTo } = form;
-        const { data } = await axiosInstance.post('/api/complaints', {
-          complainantName, email, phoneNumber, title, description, category, assignedTo
-        });
-        setTasks(prev => [data, ...prev]);
+        const createPayload = {
+          complainantName: form.complainantName,
+          email: form.email,
+          phoneNumber: form.phoneNumber,
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          assignedTo: form.assignedTo
+        };
+        const { data } = await axiosInstance.post(
+          '/api/complaints',
+          createPayload,
+          { headers: authHdr() }
+        );
+        setTasks((prev) => [data, ...prev]);
       }
+
       setForm({
         complainantName: '',
         email: '',
@@ -70,7 +108,8 @@ const TaskForm = ({ editingTask, setEditingTask, setTasks }) => {
         status: 'Open'
       });
     } catch (err) {
-      alert('Save failed.');
+      const msg = err?.response?.data?.message || 'Save failed.';
+      alert(msg);
       console.error(err);
     }
   };
@@ -84,13 +123,19 @@ const TaskForm = ({ editingTask, setEditingTask, setTasks }) => {
       <textarea name="description" value={form.description} onChange={handleChange} placeholder="Description" className="w-full p-2 border mb-2" rows={3} />
       <select name="category" value={form.category} onChange={handleChange} className="w-full p-2 border mb-2">
         <option value="Low">Low</option>
-        <option value="Medium">Medium</option>{/* align only */}
+        <option value="Medium">Medium</option>
         <option value="High">High</option>
       </select>
       <input name="assignedTo" value={form.assignedTo} onChange={handleChange} placeholder="Assigned To" className="w-full p-2 border mb-2" />
 
-      {/* Status */}
-      <select name="status" value={form.status} onChange={handleChange} className="w-full p-2 border mb-2" disabled>
+      <select
+        name="status"
+        value={form.status}
+        onChange={handleChange}
+        className="w-full p-2 border mb-2"
+        disabled={!editingTask}
+        title={editingTask ? 'Update status' : 'Status set automatically to Open on create'}
+      >
         <option value="Open">Open</option>
         <option value="In Progress">In Progress</option>
         <option value="Resolved">Resolved</option>
