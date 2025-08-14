@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import axiosInstance from '../axiosConfig';
 
+const STATUS_OPTIONS = ['All', 'Open', 'In Progress', 'Resolved', 'Closed - No Resolution'];
+
 const TaskList = ({ tasks, setTasks, setEditingTask }) => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
   const token = useMemo(() => localStorage.getItem('token') || '', []);
-
-  const authHdr = () => (token ? { Authorization: `Bearer ${token}` } : {});
 
   const fetchComplaints = async (retries = 3, delayMs = 400) => {
     setLoading(true);
@@ -14,7 +15,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
         const { data } = await axiosInstance.get('/api/complaints', {
-          headers: authHdr()
+          params: statusFilter === 'All' ? {} : { status: statusFilter }
         });
         setTasks(data);
         setLoading(false);
@@ -27,9 +28,7 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
           await new Promise((r) => setTimeout(r, delayMs * Math.pow(2, attempt)));
           continue;
         }
-        setErrMsg(
-          status ? `Failed to load complaints (HTTP ${status}).` : 'Network error while loading complaints.'
-        );
+        setErrMsg(status ? `Failed to load complaints (HTTP ${status}).` : 'Network error while loading complaints.');
         setLoading(false);
         return;
       }
@@ -39,16 +38,12 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
   useEffect(() => {
     const t = setTimeout(() => fetchComplaints(), token ? 0 : 300);
     return () => clearTimeout(t);
-  }, [token, setTasks]);
+  }, [token, statusFilter, setTasks]);
 
   const closeNoResolution = async (id) => {
     if (!window.confirm('Close this complaint without resolution?')) return;
     try {
-      const { data } = await axiosInstance.patch(
-        `/api/complaints/${id}/close-no-resolution`,
-        null,
-        { headers: authHdr() }
-      );
+      const { data } = await axiosInstance.patch(`/api/complaints/${id}/close-no-resolution`);
       setTasks((prev) => prev.map((t) => (t._id === id ? data : t)));
     } catch (err) {
       const status = err?.response?.status;
@@ -58,7 +53,20 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
 
   return (
     <div className="mt-6 overflow-x-auto">
-      <h2 className="font-semibold mb-3">Complaints</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold">Complaints</h2>
+        <div className="flex items-center gap-2">
+          <label htmlFor="statusFilter" className="text-sm opacity-80">Status:</label>
+          <select
+            id="statusFilter"
+            className="border rounded p-1 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
 
       {errMsg && (
         <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 p-2 rounded">
