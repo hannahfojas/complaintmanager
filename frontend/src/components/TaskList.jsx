@@ -29,16 +29,20 @@ const TaskList = ({ tasks, setTasks, setEditingTask }) => {
       .finally(() => setLoading(false));
   }, [statusFilter, setTasks]);
 
-  const closeNoResolution = (id) => {
-    if (!window.confirm('Close this complaint without resolution?')) return;
-    axiosInstance
-      .patch(`/api/complaints/${id}/close-no-resolution`)
-      .then((res) => {
-        setTasks((prev) => prev.map((t) => (t._id === id ? res.data : t)));
-      })
-      .catch(() => {
-        alert('Failed to close complaint.');
-      });
+  const closeNoResolution = async (id) => {
+  const note = window.prompt('Enter a resolution note (required):', '');
+  if (!note || !note.trim()) { alert('Resolution note is required.'); return; }
+  try {
+    const { data: closed } = await axiosInstance.patch(`/api/complaints/${id}/close-no-resolution`);
+    const { data: withNote } = await axiosInstance.post(`/api/complaints/${id}/notes`, {
+      text: note.trim(),
+      author: 'Staff'
+    });
+    setTasks((prev) => prev.map((t) => (t._id === id ? withNote : t)));
+  } catch (err) {
+    const status = err?.response?.status;
+    alert(status ? `Failed to close (HTTP ${status}).` : 'Network error.');
+  }
   };
 
   const cell = { whiteSpace: 'nowrap', padding: '4px 6px', border: '1px solid #ddd' };
