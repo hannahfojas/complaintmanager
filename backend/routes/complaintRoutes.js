@@ -5,7 +5,8 @@ const {
   getComplaints,
   updateComplaintDetails,
   closeWithoutResolution,
-  updateComplaintStatus
+  updateComplaintStatus,
+  addResolutionNote
 } = require('../controllers/complaintController');
 
 router.post('/', createComplaint);
@@ -13,5 +14,6 @@ router.get('/', getComplaints);
 router.put('/:id', updateComplaintDetails);
 router.patch('/:id/close-no-resolution', closeWithoutResolution);
 router.patch('/:id/status', updateComplaintStatus);
+router.post('/:id/notes', addResolutionNote);
 
 module.exports = router;
